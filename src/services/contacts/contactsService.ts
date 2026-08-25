@@ -72,45 +72,57 @@ class ContactsService {
   }
 
   // Create contact (with optional file upload)
-  async createContact(contactData: ContactFormData): Promise<Contact> {
-    const { avatar, ...data } = contactData;
+async createContact(contactData: ContactFormData): Promise<Contact> {
+  const { avatar, ...data } = contactData;
 
-    if (avatar) {
-      const formData = new FormData();
+  if (avatar) {
+    const formData = new FormData();
 
-      // Add basic fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (typeof value === 'object') {
-            // Handle custom_attributes and additional_attributes
-            Object.entries(value).forEach(([subKey, subValue]) => {
-              if (subValue !== undefined && subValue !== null) {
-                formData.append(`${key}[${subKey}]`, String(subValue));
-              }
-            });
-          } else if (Array.isArray(value)) {
-            // Handle labels array
-            value.forEach(item => formData.append(`${key}[]`, String(item)));
-          } else {
-            formData.append(key, String(value));
-          }
+    // Add basic fields
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          // Handle labels array
+          value.forEach(item => formData.append(`${key}[]`, String(item)));
+        } else if (typeof value === 'object') {
+          // Handle custom_attributes and additional_attributes
+          Object.entries(value).forEach(([subKey, subValue]) => {
+            if (subValue !== undefined && subValue !== null) {
+              formData.append(`${key}[${subKey}]`, String(subValue));
+            }
+          });
+        } else {
+          formData.append(key, String(value));
         }
-      });
+      }
+    });
 
-      // Add avatar file
-      formData.append('avatar', avatar);
+    // Add avatar file
+    formData.append('avatar', avatar);
 
-      const response = await api.post(`/contacts`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return extractData<Contact>(response);
-    } else {
-      const response = await api.post(`/contacts`, data);
-      return extractData<Contact>(response);
-    }
+    const response = await api.post(`/contacts`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const result = extractData<{
+      contact: Contact;
+      contact_inbox: unknown | null;
+    }>(response);
+
+    return result.contact;
+  } else {
+    const response = await api.post(`/contacts`, data);
+
+    const result = extractData<{
+      contact: Contact;
+      contact_inbox: unknown | null;
+    }>(response);
+
+    return result.contact;
   }
+}
 
   // Update contact
   async updateContact(contactId: string, contactData: ContactUpdateData): Promise<Contact> {
